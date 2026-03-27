@@ -1,0 +1,15 @@
+[package]
+name = "recamera-infer"
+description = "Local inference engine for the recamera SDK (.cvimodel)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+recamera-core = { path = "../recamera-core" }
+recamera-cvi-sys = { path = "../recamera-cvi-sys" }
+
+[dev-dependencies]
+tempfile = "3"

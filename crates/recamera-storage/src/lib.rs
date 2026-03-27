@@ -70,15 +70,13 @@ pub fn save_image(path: &Path, frame: &FrameData) -> Result<()> {
 /// Returns a [`Storage`](Error::Storage) error if `dir` does not exist or
 /// cannot be read.
 pub fn list_files(dir: &Path) -> Result<Vec<FileInfo>> {
-    let entries = fs::read_dir(dir).map_err(|e| {
-        Error::Storage(format!("failed to read directory {}: {e}", dir.display()))
-    })?;
+    let entries = fs::read_dir(dir)
+        .map_err(|e| Error::Storage(format!("failed to read directory {}: {e}", dir.display())))?;
 
     let mut files: Vec<FileInfo> = Vec::new();
     for entry in entries {
-        let entry = entry.map_err(|e| {
-            Error::Storage(format!("failed to read directory entry: {e}"))
-        })?;
+        let entry =
+            entry.map_err(|e| Error::Storage(format!("failed to read directory entry: {e}")))?;
         let metadata = entry.metadata().map_err(|e| {
             Error::Storage(format!(
                 "failed to read metadata for {}: {e}",

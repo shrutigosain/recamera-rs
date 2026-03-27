@@ -105,8 +105,7 @@ pub fn init(config: &LogConfig) -> Result<()> {
 
     match (&config.output_path, config.stdout) {
         (Some(path), true) => {
-            let file_appender =
-                tracing_appender::rolling::daily(path, "recamera.log");
+            let file_appender = tracing_appender::rolling::daily(path, "recamera.log");
             let file_layer = fmt::layer().with_writer(file_appender).with_ansi(false);
             let stdout_layer = fmt::layer().with_writer(std::io::stdout);
             registry
@@ -116,8 +115,7 @@ pub fn init(config: &LogConfig) -> Result<()> {
                 .map_err(|e| recamera_core::Error::Config(e.to_string()))?;
         }
         (Some(path), false) => {
-            let file_appender =
-                tracing_appender::rolling::daily(path, "recamera.log");
+            let file_appender = tracing_appender::rolling::daily(path, "recamera.log");
             let file_layer = fmt::layer().with_writer(file_appender).with_ansi(false);
             registry
                 .with(file_layer)
@@ -172,7 +170,10 @@ mod tests {
             stdout: false,
         };
         assert_eq!(config.level, LogLevel::Debug);
-        assert_eq!(config.output_path.as_deref(), Some(std::path::Path::new("/tmp/logs")));
+        assert_eq!(
+            config.output_path.as_deref(),
+            Some(std::path::Path::new("/tmp/logs"))
+        );
         assert!(!config.stdout);
     }
 

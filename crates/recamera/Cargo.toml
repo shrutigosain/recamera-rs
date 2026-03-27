@@ -1,0 +1,31 @@
+[package]
+name = "recamera"
+description = "Rust SDK for Seeed reCamera — camera capture, inference, serial, storage, and more"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+recamera-core = { path = "../recamera-core" }
+recamera-camera = { path = "../recamera-camera", optional = true }
+recamera-infer = { path = "../recamera-infer", optional = true }
+recamera-uart = { path = "../recamera-uart", optional = true }
+recamera-rs485 = { path = "../recamera-rs485", optional = true }
+recamera-storage = { path = "../recamera-storage", optional = true }
+recamera-logging = { path = "../recamera-logging", optional = true }
+recamera-config = { path = "../recamera-config", optional = true }
+recamera-system = { path = "../recamera-system", optional = true }
+
+[features]
+default = ["logging", "config", "system"]
+camera = ["dep:recamera-camera"]
+infer = ["dep:recamera-infer"]
+uart = ["dep:recamera-uart"]
+rs485 = ["uart", "dep:recamera-rs485"]
+storage = ["dep:recamera-storage"]
+logging = ["dep:recamera-logging"]
+config = ["dep:recamera-config"]
+system = ["dep:recamera-system"]
+full = ["camera", "infer", "uart", "rs485", "storage", "logging", "config", "system"]

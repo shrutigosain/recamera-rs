@@ -8,6 +8,10 @@ members = [
     "crates/recamera-uart",
     "crates/recamera-rs485",
     "crates/recamera-system",
+    "crates/recamera-cvi-sys",
+    "crates/recamera-camera",
+    "crates/recamera-infer",
+    "crates/recamera",
 ]
 
 [workspace.package]

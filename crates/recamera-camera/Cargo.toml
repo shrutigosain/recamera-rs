@@ -1,0 +1,12 @@
+[package]
+name = "recamera-camera"
+description = "Camera capture for the recamera SDK"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+recamera-core = { path = "../recamera-core" }
+recamera-cvi-sys = { path = "../recamera-cvi-sys" }

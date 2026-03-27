@@ -1,0 +1,10 @@
+[package]
+name = "recamera-cvi-sys"
+description = "Pre-generated FFI bindings for SG2002 CVI libraries (cvi_mpi, cviruntime)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+links = "cvi"
+build = "build.rs"

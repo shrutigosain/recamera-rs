@@ -16,21 +16,13 @@ use std::path::Path;
 /// transceivers. When [`direction_gpio`](Rs485Config::direction_gpio) is set,
 /// the driver writes `"1"` (transmit) or `"0"` (receive) to the given sysfs
 /// path before each operation.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Rs485Config {
     /// Path to the GPIO sysfs file for the DE/RE direction pin.
     ///
     /// For example, `"/sys/class/gpio/gpio42/value"`. When `None`, no
     /// direction switching is performed.
     pub direction_gpio: Option<String>,
-}
-
-impl Default for Rs485Config {
-    fn default() -> Self {
-        Self {
-            direction_gpio: None,
-        }
-    }
 }
 
 /// RS-485 wrapper around a UART port.
