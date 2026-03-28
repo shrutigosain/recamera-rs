@@ -72,16 +72,13 @@ Add this SDK as a dependency in your own project. No SDK download required -- th
 recamera = { git = "https://github.com/anthropics/recamera-rs", features = ["camera", "uart"] }
 ```
 
-## reCamera-OS SDK
+## How It Works
 
-The [reCamera-OS SDK](https://github.com/Seeed-Studio/reCamera-OS/releases) (look for `*_sdk.tar.gz`) contains the vendor C headers and pre-built `.so` libraries for the SG2002 SoC. It is needed for two purposes:
+The vendor C libraries (camera, video, inference) are loaded at **runtime** on the reCamera device using dynamic loading (`dlopen`). No SDK download or compile-time linking is required — just add this crate as a dependency and build.
 
-- **Cross-compilation** — When building your application for the reCamera target (`riscv64gc-unknown-linux-musl`), the Rust linker needs the `.so` files at build time. Set `SG200X_SDK_PATH` to the extracted SDK path and the `build.rs` script finds them at `$SG200X_SDK_PATH/cvi_mpi/lib/` automatically.
-- **Regenerating FFI bindings** — If the SDK is updated with new headers, maintainers can regenerate bindings using `scripts/generate-bindings.sh`. The pre-generated bindings are already committed to this repo, so most users never need to do this.
-
-The reCamera device itself already has the `.so` libraries installed -- the SDK is only needed on your build machine.
-
-Pure-Rust features (`uart`, `storage`, `logging`, `config`, `system`) do not require the SDK.
+The FFI bindings in `recamera-cvi-sys` provide:
+- Type definitions, structs, enums, and constants (from `bindings.rs`)
+- A runtime loader (`CviLibs`) that loads the vendor `.so` libraries on the device and exposes safe Rust wrappers
 
 ## Supported Platforms
 
