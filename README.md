@@ -72,20 +72,16 @@ Add this SDK as a dependency in your own project. No SDK download required -- th
 recamera = { git = "https://github.com/anthropics/recamera-rs", features = ["camera", "uart"] }
 ```
 
-### For SDK maintainers
+## reCamera-OS SDK
 
-To regenerate FFI bindings, see `scripts/generate-bindings.sh`.
+The [reCamera-OS SDK](https://github.com/Seeed-Studio/reCamera-OS/releases) (look for `*_sdk.tar.gz`) contains the vendor C headers and pre-built `.so` libraries for the SG2002 SoC. It is needed for two purposes:
 
-## Cross-Compilation
+- **Cross-compilation** — When building your application for the reCamera target (`riscv64gc-unknown-linux-musl`), the Rust linker needs the `.so` files at build time. Set `SG200X_SDK_PATH` to the extracted SDK path and the `build.rs` script finds them at `$SG200X_SDK_PATH/cvi_mpi/lib/` automatically.
+- **Regenerating FFI bindings** — If the SDK is updated with new headers, maintainers can regenerate bindings using `scripts/generate-bindings.sh`. The pre-generated bindings are already committed to this repo, so most users never need to do this.
 
-When cross-compiling your application for the reCamera target (`riscv64gc-unknown-linux-musl`), the Rust linker needs the vendor `.so` libraries at build time. These are included in the reCamera-OS SDK.
+The reCamera device itself already has the `.so` libraries installed -- the SDK is only needed on your build machine.
 
-1. Download the SDK from [reCamera-OS releases](https://github.com/Seeed-Studio/reCamera-OS/releases) (look for `*_sdk.tar.gz`) and extract it.
-2. Set `SG200X_SDK_PATH` to the extracted path when building your application.
-
-The `build.rs` script in `recamera-cvi-sys` finds the libraries at `$SG200X_SDK_PATH/cvi_mpi/lib/` automatically. The reCamera device itself already has these libraries installed -- the SDK download is only needed on your build machine.
-
-Pure-Rust features (`uart`, `storage`, `logging`, `config`, `system`) do not require the SDK for cross-compilation.
+Pure-Rust features (`uart`, `storage`, `logging`, `config`, `system`) do not require the SDK.
 
 ## Supported Platforms
 
