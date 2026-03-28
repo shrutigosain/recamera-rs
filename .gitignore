@@ -24,6 +24,9 @@ target
 # Claude
 .claude
 
+# GitHub Actions (development only)
+.github/
+
 # Local cargo config (cross-compilation settings vary per machine)
 .cargo/
 
