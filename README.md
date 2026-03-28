@@ -76,7 +76,7 @@ When cross-compiling your application for the reCamera target (`riscv64gc-unknow
 
 ### For SDK maintainers
 
-To regenerate FFI bindings, see `scripts/generate-bindings.sh` and `docs/MAINTAINER.md` (local only, not published).
+To regenerate FFI bindings, see `scripts/generate-bindings.sh`.
 
 ## Supported Platforms
 
