@@ -76,9 +76,20 @@ recamera = { git = "https://github.com/anthropics/recamera-rs", features = ["cam
 
 To regenerate FFI bindings, see `scripts/generate-bindings.sh`.
 
+## Cross-Compilation
+
+When cross-compiling your application for the reCamera target (`riscv64gc-unknown-linux-musl`), the Rust linker needs the vendor `.so` libraries at build time. These are included in the reCamera-OS SDK.
+
+1. Download the SDK from [reCamera-OS releases](https://github.com/Seeed-Studio/reCamera-OS/releases) (look for `*_sdk.tar.gz`) and extract it.
+2. Set `SG200X_SDK_PATH` to the extracted path when building your application.
+
+The `build.rs` script in `recamera-cvi-sys` finds the libraries at `$SG200X_SDK_PATH/cvi_mpi/lib/` automatically. The reCamera device itself already has these libraries installed -- the SDK download is only needed on your build machine.
+
+Pure-Rust features (`uart`, `storage`, `logging`, `config`, `system`) do not require the SDK for cross-compilation.
+
 ## Supported Platforms
 
-This SDK is designed to be built on **macOS** or **Linux** and cross-compiled for the reCamera (RISC-V 64-bit, musl libc). All paths and scripts are portable -- there are no host-specific configurations in the codebase.
+This SDK can be built on **macOS** or **Linux**. All paths and scripts are portable -- there are no host-specific configurations in the codebase.
 
 ## License
 
