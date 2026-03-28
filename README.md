@@ -57,6 +57,31 @@ This project is at an early stage. The API is expected to change as the design s
 - Pure-Rust crates (`core`, `uart`, `rs485`, `storage`, `logging`, `config`, `system`) are functional.
 - FFI crates (`camera`, `infer`, `cvi-sys`) are scaffolded but pending real bindings against the CVI runtime libraries.
 
+## Generating FFI Bindings
+
+The `camera` and `infer` features require FFI bindings for the SG2002 vendor C libraries. Pre-generated bindings are committed to the repo, but if you need to regenerate them:
+
+1. Download the SDK tarball from [reCamera-OS releases](https://github.com/Seeed-Studio/reCamera-OS/releases) (look for `*_sdk.tar.gz`) and extract it. Alternatively, clone the [Milk-V Duo SDK](https://github.com/milkv-duo/duo-buildroot-sdk).
+
+2. Install bindgen:
+   ```sh
+   cargo install bindgen-cli
+   ```
+
+3. Run the generation script:
+   ```sh
+   SDK_PATH=/path/to/sg2002_recamera_emmc ./scripts/generate-bindings.sh
+   ```
+
+4. Verify and commit:
+   ```sh
+   cargo check -p recamera-cvi-sys
+   git add crates/recamera-cvi-sys/src/bindings.rs
+   git commit -m "feat: update FFI bindings"
+   ```
+
+The script auto-detects both the reCamera-OS SDK and Milk-V Duo SDK layouts.
+
 ## Cross-Compilation
 
 reCamera uses the SG2002 SoC (RISC-V 64-bit). To cross-compile:
@@ -65,10 +90,12 @@ reCamera uses the SG2002 SoC (RISC-V 64-bit). To cross-compile:
 # Install the target
 rustup target add riscv64gc-unknown-linux-musl
 
-# Build (set SG200X_SDK_PATH to your toolchain sysroot)
-export SG200X_SDK_PATH=/path/to/sg200x-sdk
-cargo build --target riscv64gc-unknown-linux-musl
+# Build (set SG200X_SDK_PATH to the SDK sysroot for camera/infer linking)
+export SG200X_SDK_PATH=/path/to/sg2002_recamera_emmc
+cargo build --target riscv64gc-unknown-linux-musl --release
 ```
+
+Pure-Rust crates (uart, storage, logging, config, system) can be cross-compiled without the SDK.
 
 ## License
 
