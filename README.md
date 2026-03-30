@@ -13,10 +13,10 @@ Add `recamera` to your project:
 recamera = { git = "https://github.com/deatherving/recamera-rs", features = ["camera", "config", "serde"] }
 ```
 
-Create a config file:
+Create a config file in your project (e.g., `config/camera.toml`):
 
 ```toml
-# camera.toml
+# config/camera.toml
 width = 1280
 height = 720
 fps = 15
@@ -29,7 +29,7 @@ Capture a frame:
 use recamera::camera::{Camera, CameraConfig};
 use std::path::Path;
 
-let config: CameraConfig = recamera::config::load(Path::new("camera.toml"))?;
+let config: CameraConfig = recamera::config::load(Path::new("config/camera.toml"))?;
 let mut camera = Camera::new(config)?;
 camera.start_stream()?;
 let frame = camera.capture()?;
