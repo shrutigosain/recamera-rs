@@ -15,12 +15,41 @@ recamera = { git = "https://github.com/deatherving/recamera-rs", features = ["ca
 
 No SDK download required. The vendor libraries are loaded at runtime on the reCamera device.
 
+### Capture a frame
+
 ```rust
 use recamera::camera::{Camera, CameraConfig};
 
 let mut camera = Camera::new(CameraConfig::default())?;
 camera.start_stream()?;
 let frame = camera.capture()?;
+println!("Captured {}x{} frame", frame.width(), frame.height());
+```
+
+### Run inference on a .cvimodel
+
+```rust
+use recamera::camera::{Camera, CameraConfig};
+use recamera::infer::{Engine, Output};
+use std::path::Path;
+
+// Capture a frame
+let mut camera = Camera::new(CameraConfig::default())?;
+camera.start_stream()?;
+let frame = camera.capture()?;
+
+// Load a pre-converted .cvimodel and run inference
+let engine = Engine::new()?;
+let model = engine.load_model(Path::new("/userdata/models/yolo.cvimodel"))?;
+let output = model.run(&frame.data)?;
+
+match output {
+    Output::Raw(tensors) => {
+        println!("Model returned {} output tensors", tensors.len());
+        // Post-process tensors (e.g., YOLO NMS) to get detections
+    }
+    _ => {}
+}
 ```
 
 ## Features
