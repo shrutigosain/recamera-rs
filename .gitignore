@@ -36,5 +36,3 @@ sdk/
 # Lock file (library crate)
 Cargo.lock
 
-# Internal design docs
-docs/
