@@ -125,7 +125,7 @@ The higher-level crates (`recamera-camera`, `recamera-infer`) wrap the loader wi
 
 ## Cross-Compiling for reCamera
 
-The reCamera uses a RISC-V SG2002 SoC. Cross-compilation must be done on a **Linux machine** (Ubuntu 22.04+, Amazon Linux 2023, or similar). macOS and Windows are not supported as build hosts.
+The reCamera uses a RISC-V SG2002 SoC. Cross-compilation must be done on a **Linux machine** (Ubuntu 22.04+, Amazon Linux 2023, or similar). macOS and Windows may not be supported as build hosts.
 
 ### Step 1: Install Rust and the RISC-V target
 
