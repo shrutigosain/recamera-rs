@@ -1,7 +1,7 @@
 # Veo Sidewalk Detection — Project Documentation
 
-> **Status:** Pre-hardware. SDK layer complete. Model selection and app development in progress.
-> **Last updated:** March 2026
+> **Status:** Model pipeline complete. Hardware devices purchased and being tested in China. Annotation tool selection and calibration image collection in progress.
+> **Last updated:** April 2026
 
 ---
 
@@ -14,10 +14,12 @@
 5. [End-to-End Project Flow](#5-end-to-end-project-flow)
 6. [Dataset: CityScapes](#6-dataset-cityscapes)
 7. [ML Model Strategy](#7-ml-model-strategy)
-8. [Hardware](#8-hardware)
-9. [Development Phases & Roadmap](#9-development-phases--roadmap)
-10. [Open Questions & Decisions Pending](#10-open-questions--decisions-pending)
-11. [Repo Structure](#11-repo-structure)
+8. [Annotation Tool](#8-annotation-tool)
+9. [Calibration Images](#9-calibration-images)
+10. [Hardware](#10-hardware)
+11. [Development Phases & Roadmap](#11-development-phases--roadmap)
+12. [Open Questions & Decisions Pending](#12-open-questions--decisions-pending)
+13. [Repo Structure](#13-repo-structure)
 
 ---
 
@@ -93,17 +95,21 @@ Your App
 | Logging | Complete | `recamera-logging` — structured tracing |
 | Storage | Complete | `recamera-storage` — save frames to disk |
 | Dataset identified | Complete | CityScapes — has labeled `sidewalk` class |
+| Model selected | Complete | BiSeNetV2 confirmed as first model to try |
+| Model pipeline | Complete | PyTorch → ONNX → `.cvimodel` pipeline working |
+| Cross-compilation | Complete | Rust cross-compile to SG2002 unblocked |
+| Calibration images | In progress | 88/~100 collected by CTO |
+| reCamera devices | Purchased | 2 devices in China, being tested by embedded team |
 
 ### Not Yet Done
 | Component | Status | Notes |
 |---|---|---|
-| Physical reCamera device | Pending | Awaiting delivery from supplier |
-| Hardware-validated SDK | Pending | SDK is untested on real device |
-| Sidewalk segmentation model | Pending | Training/selection not started |
-| `.cvimodel` conversion | Pending | Requires Sophgo offline toolchain |
+| Hardware-validated SDK | In progress | Being tested in China with embedded team |
+| Annotation tool | In progress | CVAT identified as top choice, to be confirmed |
+| Annotated training data | Pending | Starts after annotation tool is finalized |
 | Application code | Pending | Decision logic not yet written |
 | Scooter integration | Pending | UART signal format TBD with hardware team |
-| US sidewalk fine-tuning data | Pending | CityScapes is European — may need local data |
+| US sidewalk fine-tuning data | Pending | CityScapes is European — need local data |
 
 ---
 
@@ -112,15 +118,15 @@ Your App
 ### Full pipeline from camera to scooter response
 
 ```
-Camera captures frame (1280×720 or higher, JPEG/RGB)
+Camera captures frame (1280×720, JPEG/RGB)
     │
     ▼
-Segmentation model runs on NPU
+Segmentation model (BiSeNetV2) runs on NPU
     │  Input:  raw frame pixels
     │  Output: per-pixel class label tensor
     ▼
 Post-processing (your app)
-    │  Collapse 30 CityScapes classes → 2: sidewalk / not-sidewalk
+    │  Collapse CityScapes classes → 2: sidewalk / not-sidewalk
     │  Count sidewalk pixels as % of frame
     │  Apply threshold (e.g. >15% of bottom half = on sidewalk)
     ▼
@@ -140,14 +146,18 @@ Response (TBD)
 CityScapes dataset
     │
     ▼
-Train segmentation model
-(YOLOv8-seg or DeepLabV3, simplified to 2 classes)
+Train BiSeNetV2 segmentation model
+(simplified to 2 classes: sidewalk / not-sidewalk)
     │
     ▼
 Export to ONNX
     │
     ▼
-Convert to .cvimodel using Sophgo Model Deploy Tool
+Collect ~100 calibration images (unannotated, from real scooter angle)
+    │
+    ▼
+Convert ONNX → INT8 .cvimodel using Sophgo Model Deploy Tool
+(calibration images used here to determine quantization ranges)
     │
     ▼
 Deploy to reCamera at /userdata/models/sidewalk.cvimodel
@@ -209,38 +219,42 @@ Sidewalk makes up approximately **5% of the dataset** by pixel area.
 
 1. Download CityScapes fine annotations (5,000 images)
 2. Remap all 30+ classes to 2: `sidewalk=1`, `everything_else=0`
-3. Train a lightweight segmentation model (2-class is much simpler than 30-class)
+3. Train BiSeNetV2 on remapped data
 4. Evaluate on held-out CityScapes val set → establish baseline IoU
-5. Once reCamera arrives: collect 200-500 frames from actual scooter, label sidewalk, fine-tune
+5. Once reCamera arrives: collect real scooter footage, label sidewalk, fine-tune
 
 ---
 
 ## 7. ML Model Strategy
 
-### Model candidates
+### Model decision
 
-| Model | Pros | Cons |
+| Model | Status | Reason |
 |---|---|---|
-| YOLOv8-seg | Fast, ONNX export built-in, good community support | More complex than needed for 2-class problem |
-| DeepLabV3+ (MobileNetV3 backbone) | Lightweight, good for edge, strong on CityScapes | Slower ONNX ecosystem |
-| SegFormer-B0 | State of the art, small variant available | Transformer — may be heavy for SG2002 NPU |
-| Custom lightweight U-Net | Smallest possible, tuned for 2 classes | Needs training from scratch |
+| PP-LiteSeg | Rejected | Unstable ONNX conversion — breaks during PyTorch → ONNX export |
+| **BiSeNetV2** | **Selected** | Reliable ONNX conversion, fast, designed for real-time street segmentation |
+| YOLOv8-seg | Deprioritized | More complex than needed for 2-class problem |
+| DeepLabV3+ | Deprioritized | Slower ONNX ecosystem |
 
-**Current recommendation:** Start with YOLOv8-seg (pretrained on CityScapes or COCO) — fastest path to a working `.cvimodel`.
+**BiSeNetV2** is a real-time semantic segmentation model designed specifically for street scenes. It uses a bilateral segmentation network — one branch captures spatial detail, the other captures context — making it fast and accurate for road/sidewalk scenes.
 
 ### Model conversion path
 
-The SG2002 NPU requires `.cvimodel` format. The conversion chain:
+The SG2002 NPU requires `.cvimodel` INT8 quantized format. The conversion chain:
 
 ```
-PyTorch model
+PyTorch BiSeNetV2 model
     → torch.onnx.export()
     → model.onnx
-    → Sophgo Model Deploy Tool (run_calibration.py + model_deploy.py)
-    → model.cvimodel
+    → Sophgo Model Deploy Tool
+        (run_calibration.py with ~100 calibration images)
+        (model_deploy.py → INT8 quantization)
+    → sidewalk.cvimodel
 ```
 
-Sophgo's toolchain documentation: [github.com/sophgo/tpu-mlir](https://github.com/sophgo/tpu-mlir)
+Sophgo's toolchain: [github.com/sophgo/tpu-mlir](https://github.com/sophgo/tpu-mlir)
+
+**Status:** Pipeline is working end-to-end. Pending real device test.
 
 ### Output interpretation
 
@@ -260,7 +274,77 @@ match output {
 
 ---
 
-## 8. Hardware
+## 8. Annotation Tool
+
+### Why we need one
+
+CityScapes gives us a baseline model. But to improve accuracy for US streets and the scooter camera angle, we need to label our own real footage and retrain. The annotation tool is how we draw "this pixel is sidewalk" on hundreds of real frames.
+
+### Decision: CVAT
+
+**CVAT** ([cvat.ai](https://cvat.ai)) is the recommended tool.
+
+| Reason | Detail |
+|---|---|
+| Native CityScapes format | Import and export directly — no conversion needed |
+| Free cloud tier | Start immediately, no credit card |
+| AI-assisted annotation | SAM 3 integration — click once, it auto-segments sidewalk |
+| Video support | Annotate frames from scooter footage directly |
+| Multi-user | Team can collaborate on labeling |
+| Self-hostable | Can run on own infrastructure if needed |
+
+### Alternatives evaluated
+
+| Tool | CityScapes Support | Free | AI Assist | Verdict |
+|---|---|---|---|---|
+| CVAT | Native | Yes | SAM 3 | **Recommended** |
+| Label Studio | No (needs conversion) | Yes (self-hosted) | SAM 2 | Good budget backup |
+| V7 Darwin | No | No ($150+/mo) | SAM 3 | Best UX but costly |
+| Roboflow | Unclear | Limited | Yes | Good for non-technical teams |
+| Scale AI | Yes | No (enterprise) | Yes (automotive AI) | Overkill for small team |
+
+**Status:** To be confirmed and shared in team Slack channel by end of this week.
+
+---
+
+## 9. Calibration Images
+
+### What they are and why we need them
+
+The SG2002 NPU runs models in **INT8** (compressed integers) instead of floating point. When compressing the model, the Sophgo quantization tool needs to see real input images to figure out the correct number ranges. Without this, the compressed model produces garbage outputs.
+
+Calibration images are **~100 unannotated photos** that represent what the camera will actually see in production. No labeling needed — the tool just looks at pixel values.
+
+### Requirements
+
+| Property | Requirement |
+|---|---|
+| Count | ~100 images |
+| Annotations needed | None |
+| Resolution | 1280×720 (match reCamera output) |
+| Format | JPEG |
+| Camera angle | Scooter handlebar height, slightly downward, road-facing |
+| Coverage | ~50 daytime, ~50 nighttime |
+| Content | Mix of sidewalk, road, curb transitions, varied lighting |
+
+### Status
+
+| Source | Count | Status |
+|---|---|---|
+| CTO collected | 88 | Done |
+| Shruti to collect | ~12 remaining | In progress — using phone at scooter height |
+
+### Collection guidance (phone-based)
+
+Since the reCamera is not yet available, use a phone and match these settings:
+- Shoot in landscape at 1280×720 (or resize after)
+- Hold at ~handlebar height, pointing slightly downward
+- Capture real streets: sidewalk visible, curb cuts, road
+- Cover daytime and nighttime conditions
+
+---
+
+## 10. Hardware
 
 ### Seeed reCamera
 
@@ -271,7 +355,13 @@ match output {
 - **OS:** Linux
 - **Vendor libs:** `libsys.so`, `libvi.so`, `libvpss.so`, `libvenc.so`, `libcviruntime.so` — loaded at runtime by `recamera-rs`
 
-**Device status:** Awaiting delivery from supplier. SDK was built to work without the device present (builds compile on any host; vendor libs only needed at runtime on device).
+**Device status:** 2 units purchased, currently in China being tested by CTO and embedded team.
+
+### Cross-compilation
+
+Rust cross-compilation to SG2002 was a blocker — the vendor toolchain is old and didn't support modern Rust. This has been resolved. However, device-side runtime errors are still possible and will be discovered during testing in China.
+
+Fallback: if runtime issues cannot be resolved, the application will be rewritten in C/C++ directly against Sophgo's C SDK. The overall project architecture and ML work remains unchanged regardless.
 
 ### Scooter integration
 
@@ -279,36 +369,36 @@ The reCamera will communicate with Veo's scooter control system over UART or RS-
 
 ---
 
-## 9. Development Phases & Roadmap
+## 11. Development Phases & Roadmap
 
-### Phase 1 — Pre-hardware (now)
+### Phase 1 — Pre-hardware
 - [x] Understand `recamera-rs` SDK
 - [x] Identify dataset (CityScapes)
-- [ ] Write application skeleton (compiles, wires up SDK calls, won't run without device)
-- [ ] Write and unit test post-processing logic with mock frame data
-- [ ] Define config file schema (`scooter.toml`)
-- [ ] Research model conversion toolchain (Sophgo tpu-mlir)
-- [ ] Download CityScapes, explore class distribution
+- [x] Select model (BiSeNetV2)
+- [x] Build model conversion pipeline (ONNX → `.cvimodel`)
+- [x] Resolve Rust cross-compilation
+- [ ] Finalize annotation tool (CVAT) — share in Slack this week
+- [ ] Complete calibration image collection (~12 remaining)
 
-### Phase 2 — Model
-- [ ] Train baseline 2-class segmentation model on CityScapes
-- [ ] Evaluate on CityScapes val set (target: >70% sidewalk IoU)
-- [ ] Convert to ONNX
-- [ ] Convert ONNX → `.cvimodel` using Sophgo toolchain
-- [ ] Verify model loads via `recamera-infer` (can mock-test with dummy tensors)
+### Phase 2 — Hardware testing (in progress, China)
+- [ ] Validate SDK runs on real reCamera device
+- [ ] Run end-to-end: capture frame → run model → read output
+- [ ] Measure inference latency (target: <100ms per frame)
+- [ ] Confirm Rust runtime works (or fall back to C/C++)
 
-### Phase 3 — Hardware arrives
-- [ ] Mount reCamera on scooter (or test rig)
-- [ ] Validate SDK works on real device — shake out any FFI/library loading bugs
-- [ ] Run end-to-end pipeline: capture → infer → log output
-- [ ] Measure latency (target: <100ms per frame)
-- [ ] Collect real scooter footage for fine-tuning
+### Phase 3 — Training & annotation (starts after CTO returns)
+- [ ] Set up CVAT with CityScapes data
+- [ ] Train BiSeNetV2 baseline on CityScapes (2-class)
+- [ ] Evaluate baseline IoU on val set
+- [ ] Collect real US scooter footage
+- [ ] Annotate with CVAT → export CityScapes format
+- [ ] Fine-tune model on real data
 
 ### Phase 4 — Integration
 - [ ] Wire detection output to scooter control (UART signal)
 - [ ] Define and implement response behavior (slow down / alert / log)
-- [ ] Fine-tune model on real scooter footage
 - [ ] Tune detection threshold to minimize false positives
+- [ ] Write application code
 
 ### Phase 5 — Production
 - [ ] Field testing on real scooters
@@ -318,22 +408,23 @@ The reCamera will communicate with Veo's scooter control system over UART or RS-
 
 ---
 
-## 10. Open Questions & Decisions Pending
+## 12. Open Questions & Decisions Pending
 
 | Question | Owner | Priority |
 |---|---|---|
+| Does Rust runtime work on real reCamera device? | CTO / embedded team (China) | High |
 | What is the UART signal format for scooter speed control? | Hardware/firmware team | High |
-| What is the acceptable false positive rate? (sidewalk detected when not on sidewalk) | Product/Safety | High |
+| What is the acceptable false positive rate? | Product/Safety | High |
 | Camera mounting angle and position on scooter | Hardware team | High |
+| What happens if camera/model fails? Fail-safe behavior? | Safety | High |
+| Target inference latency budget? | Systems | Medium |
 | Do we need night/low-light performance? | Product | Medium |
 | US-specific fine-tuning data — how to collect and label? | ML | Medium |
-| Target inference latency budget? | Systems | Medium |
-| What happens if the camera/model fails? Fail-safe behavior? | Safety | High |
 | Single scooter pilot or fleet rollout plan? | Product | Low |
 
 ---
 
-## 11. Repo Structure
+## 13. Repo Structure
 
 ```
 recamera-rs/
@@ -357,4 +448,4 @@ recamera-rs/
 
 ---
 
-> This document is a living record. Update it as decisions are made, hardware arrives, and phases complete.
+> This document is a living record. Update it as decisions are made, hardware is tested, and phases complete.
